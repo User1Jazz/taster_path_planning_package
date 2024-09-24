@@ -12,7 +12,20 @@ AI_STATE = {'NOTHING': 0, 'AS_OFF': 1, 'AS_READY': 2, 'AS_DRIVING': 3, 'EMERGENC
 MISSION = {'NOT_SELECTED': 0, 'ACCELERATION': 1, 'SKIDPAD': 2, 'AUTOCROSS': 3, 'TRACKDRIVE': 4, 'INSPECTION_A': 5, 'INSPECTION_B': 6, 'AUTO_DEMO': 7}
 MISSION_STATUS = {'NOT_SELECTED': 0, 'MISSION_SELECTED': 1, 'RUNNING': 2, 'FINISHED': 3}
 
+
 class PathPlanning(Node):
+    # PATH PLANNING variables (feel free to have fun around with these or try define your own) :)
+    point = [1,0]                   # A list containing point coordinates [x,y]
+    last_point = [1,0]              # A list containing previous point coordinates
+    stop = False                    # A flag for stopping criteria
+    orange_in_sight = False         # A flag for stating whether the orange is in sight
+    max_steering = float(24)        # degrees
+    max_speed = 4000                # rpm
+    torque = 190.0                  # torque
+    steer_tolerance = float(400)    # Limits speed reduction to the given value if reached
+    angle = float(0)
+    speed = float(0)
+    
     def __init__(self):
         super().__init__('path_planning')
 
@@ -59,15 +72,37 @@ class PathPlanning(Node):
         msg.axle_torque_request_nm = self.torque
         msg.brake_press_request_pct = float(0)
         msg.mission_status = self.mission_status
+
+        # Stop the car when the stop flag is true
+        if self.stop:
+            msg.axle_speed_request_rpm = float(0)
+            msg.axle_torque_request_nm = self.torque
+            msg.brake_press_request_pct = float(1000)
+            msg.estop_request = self.trigger_ebs
+            self.mission_status = MISSION_STATUS['FINISHED']
         return
     
     """
     Function to receive data from the vehicle control node
     """
     def can_callback(self, msg):
-        self.as_state = msg.as_state    # Set AI state
-        self.mission = msg.ami_state    # Set Mission Status
-        self.wheel_rpm = msg.wheel_rpm  # Get current wheel RPM from the car
+        # Set AI state
+        if self.as_state != msg.as_state:
+            self.as_state = msg.as_state
+            self.logger.warn(f"AS State set to: {self.as_state}")
+            self.mission_setup()
+
+        # Set Mission Status
+        if self.mission != msg.ami_state:
+            self.mission = msg.ami_state
+            self.logger.warn(f"Mission set to: {self.mission}")
+            self.mission_setup()
+
+        # Get current wheel RPM from the car
+        if self.wheel_rpm != msg.fl_wheel_speed_rpm:
+            self.wheel_rpm = msg.fl_wheel_speed_rpm
+            self.logger.warn(f"Wheel RPM set to: {self.wheel_rpm}")
+        
         return
 
     """

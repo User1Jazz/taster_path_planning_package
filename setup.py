@@ -2,8 +2,8 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'path_planning_package'
-components = 'path_planning_package/components'
+package_name = 'taster_path_planning_package'
+components = 'taster_path_planning_package/components'
 
 setup(
     name=package_name,
